@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Tank Oyuni</title>
+<style>
+:root{box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px);--bg:#e8efe0;--fg:#1d2b17;--btn:#3b5a2a}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#141a11;--fg:#e4efd9;--btn:#4f7a38}}
+:root[data-theme="dark"]{--bg:#141a11;--fg:#e4efd9;--btn:#4f7a38}
+html,body{margin:0;height:100%;background:var(--bg);color:var(--fg);font-family:system-ui,sans-serif;touch-action:manipulation;user-select:none}
+body{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px}
+#hud{font-weight:700}
+canvas{background:#c9b98a;border:3px solid var(--btn);max-width:100%;max-height:60vh;aspect-ratio:3/4}
+#pad{display:flex;gap:18px;align-items:center}
+.dp{display:grid;grid-template-columns:repeat(3,52px);grid-template-rows:repeat(2,52px);gap:4px}
+button{background:var(--btn);color:#fff;border:0;border-radius:10px;font-size:22px}
+#fire{width:84px;height:84px;border-radius:50%;font-size:30px}
+#over{position:fixed;inset:0;background:#000d;color:#ff4d4d;display:none;flex-direction:column;align-items:center;justify-content:center;overflow:hidden;text-align:center;z-index:9}
+#over .wall{position:absolute;inset:0;font-weight:900;font-size:26px;line-height:1.3;opacity:.45;word-break:break-word;animation:fl .5s infinite alternate}
+@keyframes fl{to{color:#ffd24d}}
+#over h1,#over button{position:relative;margin:8px}
+#over h1{font-size:54px;color:#fff;text-shadow:0 0 12px #f00}
+#over button{font-size:20px;padding:10px 24px}
+</style></head><body>
+<div id="hud"></div>
+<canvas id="c" width="360" height="480"></canvas>
+<div id="pad">
+ <div class="dp"><span></span><button id="u">▲</button><span></span><button id="l">◀</button><button id="d">▼</button><button id="r">▶</button></div>
+ <button id="fire">💥</button>
+</div>
+<div id="over"><div class="wall" id="wall"></div><h1>taqa lop!</h1><div id="fs" style="position:relative;font-size:20px"></div><button id="again">Qayta oyna</button></div>
+<script>
+const cv=document.getElementById('c'),x=cv.getContext('2d'),W=360,H=480;
+const hud=document.getElementById('hud'),over=document.getElementById('over');
+document.getElementById('wall').textContent=Array(300).fill('taqa lop').join(' ');
+let P,E,B,score,lives,t,run,keys={},cool;
+function reset(){P={x:180,y:420,d:0,s:2.2};E=[];B=[];score=0;lives=3;t=0;cool=0;run=true;over.style.display='none'}
+const V=[[0,-1],[1,0],[0,1],[-1,0]];
+function fire(o,own){B.push({x:o.x+V[o.d][0]*18,y:o.y+V[o.d][1]*18,d:o.d,own})}
+function hit(a,b,r){return Math.abs(a.x-b.x)<r&&Math.abs(a.y-b.y)<r}
+function tank(o,c){x.save();x.translate(o.x,o.y);x.rotate(o.d*Math.PI/2);
+x.fillStyle=c;x.fillRect(-12,-12,24,24);x.fillStyle='#222';x.fillRect(-15,-13,5,26);x.fillRect(10,-13,5,26);
+x.fillStyle=c;x.fillRect(-3,-22,6,18);x.restore()}
+function lose(){run=false;document.getElementById('fs').textContent='Upay: '+score;over.style.display='flex'}
+function step(){
+ t++;cool--;
+ let k=keys;
+ if(k.u){P.d=0;P.y-=P.s}else if(k.d){P.d=2;P.y+=P.s}else if(k.l){P.d=3;P.x-=P.s}else if(k.r){P.d=1;P.x+=P.s}
+ P.x=Math.max(14,Math.min(W-14,P.x));P.y=Math.max(14,Math.min(H-14,P.y));
+ if(k.f&&cool<=0){fire(P,true);cool=18}
+ if(t%110==0&&E.length<5)E.push({x:Math.random()*W,y:20,d:2,s:1,w:0});
+ for(const e of E){e.w--;
+  if(e.w<=0){const dx=P.x-e.x,dy=P.y-e.y;
+   e.d=Math.random()<.5?(Math.abs(dx)>Math.abs(dy)?(dx>0?1:3):(dy>0?2:0)):Math.floor(Math.random()*4);e.w=40+Math.random()*40}
+  e.x=Math.max(14,Math.min(W-14,e.x+V[e.d][0]*e.s));e.y=Math.max(14,Math.min(H-14,e.y+V[e.d][1]*e.s));
+  if(Math.random()<.012)fire(e,false)}
+ for(const b of B){b.x+=V[b.d][0]*5;b.y+=V[b.d][1]*5}
+ B=B.filter(b=>{
+  if(b.x<0||b.x>W||b.y<0||b.y>H)return false;
+  if(b.own){const i=E.findIndex(e=>hit(e,b,14));if(i>=0){E.splice(i,1);score+=10;return false}}
+  else if(hit(P,b,14)){lives--;P.x=180;P.y=420;if(lives<=0)lose();return false}
+  return true});
+ for(const e of E)if(hit(e,P,24)){lives--;e.y=20;P.x=180;P.y=420;if(lives<=0)lose()}
+}
+function draw(){
+ x.clearRect(0,0,W,H);
+ tank(P,'#2f6b2a');for(const e of E)tank(e,'#a33');
+ x.fillStyle='#000';for(const b of B)x.fillRect(b.x-3,b.y-3,6,6);
+ hud.textContent='Upay: '+score+'   Jan: '+'❤️'.repeat(Math.max(lives,0))}
+function loop(){if(run)step();draw();requestAnimationFrame(loop)}
+const map={u:'u',d:'d',l:'l',r:'r',fire:'f'};
+for(const id in map){const el=document.getElementById(id),k=map[id];
+ const on=e=>{e.preventDefault();keys[k]=true},off=e=>{e.preventDefault();keys[k]=false};
+ el.addEventListener('pointerdown',on);el.addEventListener('pointerup',off);el.addEventListener('pointerleave',off);el.addEventListener('pointercancel',off)}
+const kk={ArrowUp:'u',ArrowDown:'d',ArrowLeft:'l',ArrowRight:'r',' ':'f'};
+addEventListener('keydown',e=>{if(kk[e.key]){keys[kk[e.key]]=true;e.preventDefault()}});
+addEventListener('keyup',e=>{if(kk[e.key])keys[kk[e.key]]=false});
+document.getElementById('again').onclick=reset;
+reset();loop();
+</script></body></html>
